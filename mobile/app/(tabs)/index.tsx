@@ -1,20 +1,20 @@
-import { View, Text, ScrollView, TouchableOpacity, FlatList, RefreshControl } from 'react-native'
-import { useEffect, useState } from 'react'
-import { useRouter } from 'expo-router';
-import {MealAPI} from "../../services/mealAPI";
+import { View, Text, ScrollView, TouchableOpacity, FlatList, RefreshControl } from "react-native";
+import { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
+import { MealAPI } from "../../services/mealAPI";
 import { homeStyles } from "../../assets/styles/home.styles";
-import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '@/constants/colors';
-import CategoryFilter from '@/components/CategoryFilter';
-import RecipeCard from '@/components/RecipeCard';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { Image } from "expo-image";
+import { COLORS } from "../../constants/colors";
+import { Ionicons } from "@expo/vector-icons";
+import CategoryFilter from "../../components/CategoryFilter";
+import RecipeCard from "../../components/RecipeCard";
+import LoadingSpinner from "../../components/LoadingSpinner";
 
-interface Category {
+type Recipe = {
   id: Number,
   name: String,
-  image: String,
-  description: String
+  description: String,
+  image: String
 }
 
 const Home = () => {
@@ -27,44 +27,47 @@ const Home = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = async () => {
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const [apiCategories, , featuredMeal] = await Promise.all([
-      MealAPI.getCategories(),
-      MealAPI.getRandomMeals(12),
-      MealAPI.getRandomMeal(),
-    ]);
+      const [apiCategories, randomMeals, featuredMeal] = await Promise.all([
+        MealAPI.getCategories(),
+        MealAPI.getRandomMeals(12),
+        MealAPI.getRandomMeal(),
+      ]);
 
-    const transformedCategories = apiCategories.map((cat, index) => ({
-      id: index + 1,
-      name: cat.strCategory,
-      image: cat.strCategoryThumb,
-      description: cat.strCategoryDescription,
-    }));
+      const transformedCategories = apiCategories.map((cat: any, index: number) => ({
+        id: index + 1,
+        name: cat.strCategory,
+        image: cat.strCategoryThumb,
+        description: cat.strCategoryDescription,
+      }));
 
-    setCategories(transformedCategories);
+      setCategories(transformedCategories);
 
-    if (!selectedCategory && transformedCategories.length > 0) {
-      setSelectedCategory(transformedCategories[0].name);
+      if (!selectedCategory) setSelectedCategory(transformedCategories[0].name);
+
+      const transformedMeals = randomMeals
+        .map((meal) => MealAPI.transformMealData(meal))
+        .filter((meal) => meal !== null);
+
+      setRecipes(transformedMeals);
+
+      const transformedFeatured = MealAPI.transformMealData(featuredMeal);
+      setFeaturedRecipe(transformedFeatured);
+    } catch (error) {
+      console.log("Error loading the data", error);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    const transformedFeatured = MealAPI.transformMealData(featuredMeal);
-    setFeaturedRecipe(transformedFeatured);
-
-  } catch (error) {
-    console.log("Error loading the data", error);
-  } finally {
-    setLoading(false);
-  }
-}
-
-  const loadCategoryData = async (category) => {
+  const loadCategoryData = async (category: Recipe) => {
     try {
       const meals = await MealAPI.filterByCategory(category);
       const transformedMeals = meals
-        .map((meal) => MealAPI.transformMealData(meal))
-        .filter((meal) => meal !== null);
+        .map((meal: Recipe) => MealAPI.transformMealData(meal))
+        .filter((meal: Recipe) => meal !== null);
       setRecipes(transformedMeals);
     } catch (error) {
       console.error("Error loading category data:", error);
@@ -84,14 +87,8 @@ const Home = () => {
   };
 
   useEffect(() => {
-    if (selectedCategory) {
-      loadCategoryData(selectedCategory);
-    }
-  }, [selectedCategory]);
-
-  useEffect(() => {
     loadData();
-  }, [])
+  }, []);
 
   if (loading && !refreshing) return <LoadingSpinner message="Loading delicions recipes..." />;
 
@@ -215,7 +212,6 @@ const Home = () => {
         </View>
       </ScrollView>
     </View>
-  )
-}
-
-export default Home
+  );
+};
+export default Home;
